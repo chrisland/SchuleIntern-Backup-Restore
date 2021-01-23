@@ -18,13 +18,12 @@
         <h1>SchuleIntern</h1>
       </div>
     </div>
-    
 
     <Server v-if="steps == 'server'" v-bind:apiRoot="apiRoot" ></Server>
 
-    <Settings v-if="steps == 'settings'" v-bind:apiRoot="apiRoot" v-bind:userValues="values"></Settings>
+    <Settings v-if="steps == 'settings'" v-bind:backup="backup" v-bind:apiRoot="apiRoot" v-bind:userValues="values"></Settings>
 
-    <Restore v-if="steps == 'install'"  v-bind:apiRoot="apiRoot" v-bind:userValues="values"></Restore>
+    <Restore v-if="steps == 'restore'"  v-bind:backup="backup" v-bind:apiRoot="apiRoot" v-bind:userValues="values"></Restore>
 
   </div>
 </template>
@@ -48,7 +47,8 @@ export default {
       apiRoot: './',
       dataPost: {},
       steps: 'server',
-      values: {}
+      values: {},
+      backup: {}
     }
   },
   created: function () {
@@ -60,12 +60,16 @@ export default {
       if (data.server == true) {
         //console.log('server done!');
         this.steps = 'settings';
+        if (data.backup) {
+          that.backup = data.backup;
+        }
+        
       }
 
       if (data.settings == true && data.values) {
         //console.log('settings done!');
         that.values = data.values;
-        this.steps = 'install';
+        this.steps = 'restore';
       }
 
     });

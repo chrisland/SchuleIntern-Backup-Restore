@@ -1,0 +1,27 @@
+BACKUP SchuleIntern
+
+Start Time: 2019-10-14 04:09
+End Time: 2019-10-14 04:09
+SoftwareVersion: 2.9.1
+
+Erstelle Backup der Datenbank nach backup/2019-10-14-040940_data_Database.sql
+Daten zur ZIP Datei hinzufügen... File: sql-dump/dump_0.sql - Erfolgreich!
+Daten zur ZIP Datei hinzufügen... File: sql-dump/dump_1.sql - Erfolgreich!
+Daten zur ZIP Datei hinzufügen... File: sql-dump/dump_2.sql - Erfolgreich!
+Daten zur ZIP Datei hinzufügen... File: sql-dump/dump_3.sql - Erfolgreich!
+Erstellen des Datenbankbackups fertig.
+Sichere Dateien...
+Sichere Ordner "data"...
+Daten zur ZIP Datei hinzufügen... File: data/beobachtungsboegen/.gitignore - Erfolgreich!
+Daten zur ZIP Datei hinzufügen... File: data/config/config.php - Erfolgreich!
+Daten zur ZIP Datei hinzufügen... File: data/config/userlib.class.php - Erfolgreich!
+Daten zur ZIP Datei hinzufügen... File: data/dokumente/.gitignore - Erfolgreich!
+Daten zur ZIP Datei hinzufügen... File: data/dokumente/67.dat - Erfolgreich!
+Daten zur ZIP Datei hinzufügen... File: data/imageUploads/.gitignore - Erfolgreich!
+Daten zur ZIP Datei hinzufügen... File: data/update/.gitignore - Erfolgreich!
+Daten zur ZIP Datei hinzufügen... File: data/uploads/.gitignore - Erfolgreich!
+Daten zur ZIP Datei hinzufügen... File: data/wartungsmodus/index.htm - Erfolgreich!
+Daten zur ZIP Datei hinzufügen... File: data/wartungsmodus/status.dat - Erfolgreich!
+Datensicherung erfolgreich!
+
+Backup erfolfolgreich. Datei: "../data/backup/2019-10-14-040940_data.zip

@@ -10,18 +10,7 @@
 
           <li>
             <div class="box-long">
-              Daten vom Server laden und entpacken
-              <div class="text-red">{{list.downloadBranch.msg}}</div>
-            </div>
-            <div class="box-icon">
-              <img v-if="list.downloadBranch.install == true && list.downloadBranch.return == true" src="../assets/icons/check.svg" alt="ok" title="ok"/>
-              <img v-if="list.downloadBranch.install == false && list.downloadBranch.return == false" src="../assets/icons/cancel.svg" alt="error" title="error"/>
-              <img v-if="list.downloadBranch == 'loading'" src="../assets/icons/spinner.gif" alt="loading" title="loading"/>
-            </div>
-          </li>
-          <li>
-            <div class="box-long">
-              Webserver Basisverzeichnis befüllen (CSS, JS, Bilder)
+              MoveFiles
               <div class="text-red">{{list.moveFiles.msg}}</div>
             </div>
             <div class="box-icon">
@@ -30,50 +19,19 @@
               <img v-if="list.moveFiles == 'loading'" src="../assets/icons/spinner.gif" alt="loading" title="loading"/>
             </div>
           </li>
+
           <li>
             <div class="box-long">
-              Konfigurationsdatei schreiben (data/config/config.php)
-              <div class="text-red">{{list.makeConfig.msg}}</div>
+              InsertDatabase
+              <div class="text-red">{{list.insertDatabase.msg}}</div>
             </div>
             <div class="box-icon">
-              <img v-if="list.makeConfig.install == true && list.makeConfig.return == true" src="../assets/icons/check.svg" alt="ok" title="ok"/>
-              <img v-if="list.makeConfig.install == false && list.makeConfig.return == false" src="../assets/icons/cancel.svg" alt="error" title="error"/>
-              <img v-if="list.makeConfig == 'loading'" src="../assets/icons/spinner.gif" alt="loading" title="loading"/>
+              <img v-if="list.insertDatabase.install == true && list.insertDatabase.return == true" src="../assets/icons/check.svg" alt="ok" title="ok"/>
+              <img v-if="list.insertDatabase.install == false && list.insertDatabase.return == false" src="../assets/icons/cancel.svg" alt="error" title="error"/>
+              <img v-if="list.insertDatabase == 'loading'" src="../assets/icons/spinner.gif" alt="loading" title="loading"/>
             </div>
           </li>
-          <li>
-            <div class="box-long">
-              Tabellen in der Datenbank erstellen
-              <div class="text-red">{{list.initDbTable.msg}}</div>
-            </div>
-            <div class="box-icon">
-              <img v-if="list.initDbTable.install == true && list.initDbTable.return == true" src="../assets/icons/check.svg" alt="ok" title="ok"/>
-              <img v-if="list.initDbTable.install == false && list.initDbTable.return == false" src="../assets/icons/cancel.svg" alt="error" title="error"/>
-              <img v-if="list.initDbTable == 'loading'" src="../assets/icons/spinner.gif" alt="loading" title="loading"/>
-            </div>
-          </li>
-          <li>
-            <div class="box-long">
-              Administrator Zugang setzen
-              <div class="text-red">{{list.preSettingsSql.msg}}</div>
-            </div>
-            <div class="box-icon">
-              <img v-if="list.preSettingsSql.install == true && list.preSettingsSql.return == true" src="../assets/icons/check.svg" alt="ok" title="ok"/>
-              <img v-if="list.preSettingsSql.install == false && list.preSettingsSql.return == false" src="../assets/icons/cancel.svg" alt="error" title="error"/>
-              <img v-if="list.preSettingsSql == 'loading'" src="../assets/icons/spinner.gif" alt="loading" title="loading"/>
-            </div>
-          </li>
-          <li>
-            <div class="box-long">
-              Versenden der Zugangsdaten an den Admin
-              <div class="text-red">{{list.sendMail.msg}}</div>
-            </div>
-            <div class="box-icon">
-              <img v-if="list.sendMail.install == true" src="../assets/icons/check.svg" alt="ok" title="ok"/>
-              <img v-if="list.sendMail.install == false" src="../assets/icons/cancel.svg" alt="error" title="error"/>
-              <img v-if="list.sendMail == 'loading'" src="../assets/icons/spinner.gif" alt="loading" title="loading"/>
-            </div>
-          </li>
+
           <li>
             <div class="box-long">
               Temporäre Daten löschen
@@ -166,7 +124,8 @@ export default {
   name: 'Restore',
   props: {
     apiRoot: String,
-    userValues: Object
+    userValues: Object,
+    backup: Object
   },
   data: function () {
     return {
@@ -175,17 +134,10 @@ export default {
 
       loadingDeleteFolder: false,
       loadingDeleteFolderError: 'Das Löschen war nicht erfolgreich. Bitte löschen Sie den Ordner manuell!',
-
-      cronUrl1: '',
-      cronUrl2: '',
       
       list: {  // Reihenfolge ist wichtig!
-        downloadBranch: false,
         moveFiles: false,
-        makeConfig: false,
-        initDbTable: false,
-        preSettingsSql: false,
-        sendMail: false,
+        insertDatabase: false,
         removeFolder: false
       }
     }
@@ -211,9 +163,6 @@ export default {
         //console.log('---- loop ende ----');
         // Loop ist fertig
 
-        this.cronUrl1 = this.userValues.uri.replace("index.php","cron.php?cronkey="+this.userValues.cronkey);
-        this.cronUrl2 = this.userValues.uri.replace("index.php","cron.php?cronkey="+this.userValues.cronkey+"&cronName=MailSender");
-
         this.install = false;
 
         for (const key of list) {
@@ -234,7 +183,7 @@ export default {
         this.list[next] = 'loading';
 
         var that = this;
-        axios.post(this.apiRoot+'restore.php?action='+next, params)
+        axios.post(this.apiRoot+'restore.php?action='+next, params, {})
         .then( function(response) {
 
           that.loading = false;

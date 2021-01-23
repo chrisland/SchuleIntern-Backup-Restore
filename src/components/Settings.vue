@@ -1,98 +1,64 @@
 <template>
   <div class="settings">
     
-    <form v-on:submit.prevent>
+    <form enctype="multipart/form-data" v-on:submit.prevent>
       <div class="btn-outer-box">
-        <button @click="install" class="btn">Installieren</button>
+        <button @click="restore" class="btn">Wiederherstellen</button>
       </div>
       
       <div class="outer-box">
         <div class="box box-bg-white">
-          <h3 class="header-box green">Einstellungen</h3>
-          <ul>
-            <li class="box-input">
-              Schulname
-              <input type="text" name="name" v-model="values.name" placeholder="z.B. Staatliches Digitalgymnasium" required="true"/>
-              <div class="input-underline"></div>
+          <h3 class="header-box green">Backup</h3>
+          <p class="padding-tb">
+            Backup erstellt am: {{backup.StartTimeFormat}}
+          </p>
+          <h3>Folgende Schritte werden auf dem Server durchgeführt:</h3>
+
+          <ul class="ullist">
+            <li v-if="backup.Action == 'data'">
+              1. Der 'data' Ordner wird gelöscht und mit dem Ordner aus dem Backup ersetzt.
             </li>
-            <li class="box-input">
-              Schulnummer
-              <input type="text" name="nummer" v-model="values.nummer" placeholder="0123" required="true" />
-              <div class="input-underline">Vierstellig mit führender Null</div>
+            <li v-if="backup.Action == 'full'">
+              1. Die Ordner 'www', 'framework', 'cli' und 'data' werden gelöscht und mit den Ordnern aus dem Backup ersetzt.
             </li>
-            <li class="box-input">
-              Name der Seite
-              <input type="text" name="name1" v-model="values.name1" placeholder="RSU" maxlength="10" minlength="2" class="" required="true" >
-              <input type="text" name="name2" v-model="values.name2" placeholder="intern" maxlength="10" minlength="2" class="" required="true" >
-              <div class="input-underline">Zweiteilig. z.B. RSU intern</div>
+            <li v-if="backup.Action == 'data' || backup.Action == 'full' || backup.Action == 'database'">
+              2. Die Datenbank wird geleert und mit dem Backup neu eingespielt.
             </li>
-            <li class="box-input">
-              Modus für Elternbenutzer
-              <select v-model="values.elternbenutzer" class="" required="true">
-                  <option value="ASV_CODE">Registrierungscodes</option>
-                  <option value="ASV_MAIL">E-Mailadresse aus ASV Import verwenden</option>
-              </select>
-            </li>
-            <li class="box-input">
-              Stundenplan Software
-              <select v-model="values.stundenplan" class="" required="true">
-                  <option value="UNTIS">UNTIS</option>
-                  <option value="SPM++">SPM++ / VPM++</option>
-                  <option value="TIME2007">TIME2007</option>
-                  <option value="WILLI">WILLI</option>
-              </select>
-            </li>
-            <li class="box-input">
-              Notenverwaltung aktivieren?
-              <select v-model="values.notenverwaltung" class="">
-                  <option value="false">Nein</option>
-                  <option value="true">Ja</option>
-              </select>
-              <div class="input-underline">
-                <strong>Bitte beachten:</strong>
-                <br>Die Notenverwaltung ist bisher nur für Gymnasien und die Klassenstunden 5 bis 9 einsetzbar.
-              </div>
-            </li>
-            
-            
           </ul>
 
-          <h3 class="header-box">System</h3>
-          <ul>
-            <li class="box-input">
-              URL zur Index.php
-              <input type="text" v-model="values.uri" placeholder="https://" required="true" />
-              <div class="input-underline">
-                <strong>Beachten Sie bitte folgende Hinweise:</strong>
-                <ul>
-                  <li>Wenn Sie SSL verwenden (Empfohlen!), dann geben Sie hier bitte die URL mit https beginnend ein!</li>
-                  <li>Stellen Sie bitte am Server die automatische Umleitung auf SSL aus! Dies übernimmt die Software für Sie.</li>
-                </ul>
-              </div>
-            </li>
-            <li class="box-input">
-              Schlüssel für Cron Jobs
-              <input type="text" v-model="values.cronkey" placeholder="" required="true" />
-              <div class="input-underline">
-                Mindestens 20 Stellen, max 30 Stellen
-              </div>
-            </li>
-            <li class="box-input">
-              Schlüssel für API
-              <input type="text" v-model="values.apikey" placeholder="" required="true" />
-              <div class="input-underline">
-                Mindestens 20 Stellen, max 30 Stellen
-              </div>
-            </li>
-            <li class="box-input">
-                Zu installierende Verson wählen 
-                <select v-model="values.branch" class="" required="true" >
-                    <option v-bind:key="index" v-for="(item, index) in values.branches" :value="item.Name">{{item.Desc}}</option>
-                </select>
-                <div class="input-underline">
-                  Ausgewählte Version wird vom Updateserver heruntergeladen.
+          <h3 class="header-box blue">SQL Dump</h3>
+          <ul class="">
+            <li v-bind:key="index" v-for="(item, index) in backup.FileDatabase" >
+              <div>
+                <p>{{item.name}} [{{item.size}}mb]</p>
+                <div v-if="item.diff == false" class="text-red icons-vorsicht">
+                  Die Datei ist wahrscheinlich zu groß!
                 </div>
+              </div>
+              
             </li>
+          </ul>
+
+          <h3 class="header-box grey">Server Verzeichnis</h3>
+          <ul class="text-red box-icons-vorsicht">
+            <li v-if="!backup.FileDatabase">
+              Es wurde kein Datenbank Backup (Database.sql) gefunden!
+            </li>
+            <li v-if="backup.Action == 'full' && backup.FolderWWW">
+              Der Ordner 'www' wurde auf dem Server gefunden und wird vom Backupscript überschrieben.
+            </li>
+            <li v-if="backup.Action == 'full' && backup.FolderFramework">
+              Der Ordner 'framework' wurde auf dem Server gefunden und wird vom Backupscript überschrieben.
+            </li>
+            <li v-if="backup.Action == 'full' && backup.FolderCli">
+              Der Ordner 'cli' wurde auf dem Server gefunden und wird vom Backupscript überschrieben.
+            </li>
+            <li v-if="(backup.Action == 'data' || backup.Action == 'full') && backup.FolderData">
+              Der Ordner 'data' wurde auf dem Server gefunden und wird vom Backupscript überschrieben.
+            </li>
+
+            <li v-else class="box-icons-vorsicht-NONE">Keine Probleme erkannt.</li>
+
           </ul>
 
         </div>
@@ -102,6 +68,9 @@
           <ul>
             <li class="box-input">
               <strong>Bitte beachten Sie, dass die Datenbank bereits angelegt sein muss.</strong>
+            </li>
+            <li class="box-input text-red">
+              <strong>Bestehende Tabellen werden gelöscht!</strong><br>Falls nötig bitte ein Backup der Datenbank anlegen.
             </li>
             <li class="box-input">
               Datenbank - Host
@@ -125,30 +94,11 @@
             </li>
           </ul>
 
-          <h3 class="header-box blue">Administratorzugang</h3>
-
-          <ul>
-            <li class="box-input">
-              E-Mail
-              <input type="text" name="adminemail" v-model="values.adminemail" required="true"/>
-            </li>
-            <li class="box-input">
-              Benutzername
-              <input type="text" v-model="values.adminuser" required="true"/>
-            </li>
-            <li class="box-input">
-              Passwort
-              <input type="text" v-model="values.adminpass" required="true" />
-              <div class="input-underline text-red">
-                Bitte merken!
-              </div>
-            </li>
-          </ul>
         </div>
       </div>
 
       <div class="btn-outer-box">
-        <button @click="install" class="btn">Installieren</button>
+        <button @click="restore" class="btn">Wiederherstellen</button>
       </div>
     </form>
     
@@ -164,7 +114,8 @@ export default {
   name: 'Settings',
   props: {
     apiRoot: String,
-    userValues: Object
+    userValues: Object,
+    backup: Object
   },
   data: function () {
     return {
@@ -173,12 +124,11 @@ export default {
   },
   created: function () {
     
-    if (this.userValues.name) {
+    if (this.userValues.file) {
       this.setData(this.userValues);
     } else {
       this.init();
     }
-    
   
   },
   methods: {
@@ -201,25 +151,11 @@ export default {
     },
     required: function () {
 
-      if (!this.values.name
-        || !this.values.nummer
-        || !this.values.name1
-        || !this.values.name2
-        || !this.values.uri
-        || !this.values.stundenplan
-        // || this.values.notenverwaltung == ''
-        || !this.values.elternbenutzer
-        || !this.values.branch
-        || !this.values.cronkey
-        || !this.values.apikey
-        || !this.values.dbhost
+      if (!this.values.dbhost
         || !this.values.dbport
         //|| !this.values.dbpass
         || !this.values.dbname
         || !this.values.dbuser
-        || !this.values.adminemail
-        || !this.values.adminuser
-        || !this.values.adminpass
         
          ) {
           return false;
@@ -228,7 +164,7 @@ export default {
       }
 
     },
-    install: function () {
+    restore: function () {
 
       if ( !this.required() ) {
           // TODO: error msg
@@ -236,7 +172,6 @@ export default {
           console.log('error: required');
           return false;
       }
-      this.values.branches = false;
 
       EventBus.$emit('done--step', {
         settings: true,

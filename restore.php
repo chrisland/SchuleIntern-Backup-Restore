@@ -1,8 +1,12 @@
 <?php 
 
+define('FOLDER_RESTORE', getcwd() );
+define('FOLDER_WWW', FOLDER_RESTORE.'/../');
+define('FOLDER_BACKUPDATA', FOLDER_RESTORE.'/backup');
+define('FOLDER_BACKUP_FILE', FOLDER_RESTORE .'/backup.zip');
+define('FOLDER_ROOT', FOLDER_RESTORE.'/../../');
 
-define('FOLDER_SETUP', getcwd() );
-define('FOLDER_WWW', FOLDER_SETUP.'/../');
+
 // define('FOLDER_TEMP', FOLDER_WWW.'/install_temp');
 // //define('FOLDER_ROOT', FOLDER_SETUP.'/../system');
 // define('FOLDER_ROOT', FOLDER_SETUP.'/../../');
@@ -19,7 +23,14 @@ switch ($action) {
   */
   case 'server';
 
-   
+    $localBackups = array();
+    $dir = scandir(FOLDER_RESTORE);
+    foreach($dir as $file) {
+      $extension = end(explode(".", $file));   
+      if ($extension == 'zip' || $extension == '7zip' || $extension == 'rar') {
+        $localBackups[] = $file;
+      }
+    }
 
     $zip = new ZipArchive();
 
@@ -28,7 +39,8 @@ switch ($action) {
       'upperDirWriteable' => is_writable(FOLDER_WWW),
       'phpVersion' => phpversion(),
       'phpVersionCompare' => version_compare(phpversion(), '7.2.0', '>'),
-      'zipEnable' => $zip ? true : false
+      'zipEnable' => $zip ? true : false,
+      'localBackups' => $localBackups
     );
 
     echo json_encode($return);
@@ -43,7 +55,14 @@ switch ($action) {
 
 
     $return = array(
-      'uri' => 'aaa'
+      'dbport' => '3306',
+
+      //TODO:
+      // only for test!!!!!
+      'dbhost' => 'localhost',
+      'dbuser' => 'root',
+      'dbname' => 'test',
+
     );
 
     echo json_encode($return);
@@ -52,161 +71,132 @@ switch ($action) {
     break;
 
 
-  // /*
-  //   Step 3.1 - downloadBranch
-  // */
-  // case 'downloadBranch':
+  /*
+    Step 1 - uploadBackup
+  */
+  case 'uploadBackup':
     
+    $return = array('install' => false);
+
+    // required data
+    if ( !$Installer->requiredPost() ) {
+      $return = array('install' => false, 'error' => 'Missing Data');
+      echo json_encode($return);
+      exit;
+    }
+    
+    $return['return'] = $Installer->uploadBackup();
+    if ($return['return'] !== true) {
+      echo json_encode($return);
+      exit;
+    }
+    $return['return'] = $Installer->unzipFile();
+    if ($return['return'] !== true) {
+      echo json_encode($return);
+      exit;
+    }
+    $return['return'] = $Installer->getBackupJson();
+    if ( is_array($return['return']) && $return['return']['errorMsg'] ) {
+      echo json_encode($return);
+      exit;
+    }
+
+    $json = json_decode( $return['return'] );
+    if ( $json->StartTime ) {
+      $json->StartTimeFormat = date('d.m.Y H:i',$json->StartTime);
+    }
+
+    $json->FolderWWW = file_exists(FOLDER_WWW);
+    $json->FolderFramework = file_exists(FOLDER_WWW.'../framework');
+    $json->FolderCli = file_exists(FOLDER_WWW.'../cli');
+    $json->FolderData = file_exists(FOLDER_WWW.'../data');
+
+    //$json->FileDatabase = file_exists(FOLDER_BACKUPDATA."/Database.sql");
+
+    $json->maxUpload = (int)(ini_get('upload_max_filesize'));
+    $json->maxPost = (int)(ini_get('post_max_size'));
+
+    $json->FileDatabase = array();
+    $split_folder = FOLDER_BACKUPDATA."/sql-dump";
+    $splits = scandir($split_folder);
+    foreach ($splits as $dump) {
+      if ($dump == "." || $dump == "..") { continue; }
+      $json->FileDatabase[] = array(
+        'name' => $dump,
+        'size' => (int)(filesize($split_folder .'/'.$dump)/1000000),
+        'diff' => (int)(filesize($split_folder .'/'.$dump)/1000000) > $json->maxUpload ? false : true
+      );
+    }
+
+    
+
+
+    $return['return'] = json_encode( $json );
+
+
+    $return['install'] = true;
+
+    echo json_encode($return);
+    exit;
+    break;
+
+
+
+  /*
+    Step 2.1 - moveFiles
+  */
+  case 'moveFiles':
+    
+    $return = array('install' => false);
+
+    // required data
+    if ( !$Installer->requiredPost() ) {
+      $return = array('install' => false, 'error' => 'Missing Data');
+      echo json_encode($return);
+      exit;
+    }
+    
+    $return['return'] = $Installer->moveFiles();
+    if ( $return['return'] === true ) {
+      $return['install'] = true;
+    }
+
+    echo json_encode($return);
+    exit;
+    break;
+
+  /*
+    Step 2.2 - insertDatabase
+  */
+  case 'insertDatabase':
+    
+    $return = array('install' => false);
+
+    // required data
+    if ( !$Installer->requiredPost() ) {
+      $return = array('install' => false, 'error' => 'Missing Data');
+      echo json_encode($return);
+      exit;
+    }
+    
+    $return['return'] = $Installer->insertDatabase();
+    if ( $return['return'] === true ) {
+      $return['install'] = true;
+    }
+
+    echo json_encode($return);
+    exit;
+    break;
+
+  
+  /*
+    Step 2.2.1 - loopQuery
+  */
+  // case 'loopQuery':
+
   //   $return = array('install' => false);
 
-  //   // required data
-  //   if ( !$Installer->requiredPost() ) {
-  //     $return = array('install' => false, 'error' => 'Missing Data');
-  //     echo json_encode($return);
-  //     exit;
-  //   }
-    
-  //   $return['return'] = $Installer->downloadBranch();
-  //   if ( $return['return'] === true ) {
-  //     $return['install'] = true;
-  //   }
-    
-  //   echo json_encode($return);
-  //   exit;
-  //   break;
-
-
-  // /*
-  //   Step 3.2 - moveFiles
-  // */
-  // case 'moveFiles':
-    
-  //   $return = array('install' => false);
-
-  //   // required data
-  //   if ( !$Installer->requiredPost() ) {
-  //     $return = array('install' => false, 'error' => 'Missing Data');
-  //     echo json_encode($return);
-  //     exit;
-  //   }
-    
-  //   $return['return'] = $Installer->moveFiles();
-  //   if ( $return['return'] === true ) {
-  //     $return['install'] = true;
-  //   }
-
-  //   echo json_encode($return);
-  //   exit;
-  //   break;
-
-  // /*
-  //   Step 3.3 - makeConfig
-  // */
-  // case 'makeConfig':
-    
-  //   $return = array('install' => false);
-
-  //   // required data
-  //   if ( !$Installer->requiredPost() ) {
-  //     $return = array('install' => false, 'error' => 'Missing Data');
-  //     echo json_encode($return);
-  //     exit;
-  //   }
-    
-  //   $return['return'] = $Installer->makeConfig();
-  //   if ( $return['return'] === true ) {
-  //     $return['install'] = true;
-  //   }
-
-  //   echo json_encode($return);
-  //   exit;
-  //   break;
-
-
-  // /*
-  //   Step 3.4 - initDbTable
-  // */
-  // case 'initDbTable':
-    
-  //   $return = array('install' => false);
-
-  //   // required data
-  //   if ( !$Installer->requiredPost() ) {
-  //     $return = array('install' => false, 'error' => 'Missing Data');
-  //     echo json_encode($return);
-  //     exit;
-  //   }
-    
-  //   $return['return'] = $Installer->initDbTable();
-  //   if ( $return['return'] === true ) {
-  //     $return['install'] = true;
-  //   }
-
-  //   echo json_encode($return);
-  //   exit;
-  //   break;
-
-  // /*
-  //   Step 3.5 - preSettingsSql
-  // */
-  // case 'preSettingsSql':
-
-  //   $return = array('install' => false);
-
-  //   // required data
-  //   if ( !$Installer->requiredPost() ) {
-  //     $return = array('install' => false, 'error' => 'Missing Data');
-  //     echo json_encode($return);
-  //     exit;
-  //   }
-    
-  //   $return['return'] = $Installer->preSettingsSql();
-  //   if ( $return['return'] === true ) {
-  //     $return['install'] = true;
-  //   }
-
-  //   echo json_encode($return);
-  //   exit;
-  //   break;
-
-  // /*
-  //   Step 3.6 - sendMail
-  // */
-  // case 'sendMail':
-    
-  //   $return = array('install' => false);
-
-  //   // required data
-  //   if ( !$Installer->requiredPost() ) {
-  //     $return = array('install' => false, 'error' => 'Missing Data');
-  //     echo json_encode($return);
-  //     exit;
-  //   }
-    
-  //   $return['return'] = $Installer->sendMail();
-  //   if ( $return['return'] === true ) {
-  //     $return['install'] = true;
-  //   }
-
-  //   echo json_encode($return);
-  //   exit;
-  //   break;
-
-  // /*
-  //   Step 3.7 - removeFolder
-  // */
-  // case 'removeFolder':
-    
-  //   $return = array('install' => false);
-
-  //   // required data
-  //   if ( !$Installer->requiredPost() ) {
-  //     $return = array('install' => false, 'error' => 'Missing Data');
-  //     echo json_encode($return);
-  //     exit;
-  //   }
-    
-  //   $return['return'] = $Installer->removeFolder();
+  //   $return['return'] = $Installer->loopQuery();
   //   if ( $return['return'] === true ) {
   //     $return['install'] = true;
   //   }
@@ -216,7 +206,31 @@ switch ($action) {
   //   break;
 
 
+  /*
+    Step 3.7 - removeFolder
+  */
+  case 'removeFolder':
+    
+    $return = array('install' => false);
 
+    // required data
+    if ( !$Installer->requiredPost() ) {
+      $return = array('install' => false, 'error' => 'Missing Data');
+      echo json_encode($return);
+      exit;
+    }
+    
+    $return['return'] = $Installer->removeFolder();
+    if ( $return['return'] === true ) {
+      $return['install'] = true;
+    }
+
+    echo json_encode($return);
+    exit;
+    break;
+
+
+    
 
   // /*
   //   Step Manual - deleteFolder - get
@@ -264,69 +278,327 @@ class Installer {
 
   public $mysqli;
 
-  public function preSettingsSql() {
+  public function requiredPost() {
 
-    if (!$this->connectDB()) {
-      return array(
-        'errorMsg' => 'Es kann keine Verbindung zur Datenbank aufgebaut werden. '.$this->mysqli->error
-      );
-    }
-    
-    $version = file_get_contents(UPDATESERVER . "/api/branch/" . $_POST['branch'] . "/version");
-    if ($version === false) {
-      return array(
-        'errorMsg' => 'Es kann leider keine aktuelle Version heruntergeladen werden.'
-      );
-    } else {
-      $version = json_decode($version, true)['id'];
+    $list = array(
+      'dbhost',
+      'dbport',
+      'dbname',
+      'dbuser',
+      'file'
+    );
 
-      if ($version) {
-        $q = "INSERT INTO `settings` (`settingName`, `settingValue`)";
-        $q .= " values('current-release-id', '$version' );";
-        if ( !$this->mysqli->query($q) ) {
-          return array(
-            'errorMsg' => 'Datenbank Query konnte nicht richtig ausgeführt werden. CODE 001.'.$this->mysqli->error
-          );
-        }
-  
+    for($i = 0; $i < count($list); $i++) {
+      
+      if ( !isset($list[$i]) || $list[$i] = '' ) {
+        return false;
       }
+
     }
     
+    return true;
+  }
 
-    $password = crypt( trim((string)$_POST['adminpass']) , '$2a' . '$10' . '$' . substr(sha1(mt_rand()),0,22) );
+  public function uploadBackup() {
 
-    $username = (string)$_POST['adminuser'];
-    $time = strtotime('now');
 
-    if ($username && $password && $time) {
-      $q = "INSERT INTO `users`";
-      $q .= " (`userID`, `userName`, `userCachedPasswordHash`, `userCachedPasswordHashTime`, `userNetwork`)";
-      $q .= " values ( 1, '$username', '$password', $time,'SCHULEINTERN');";
+    if ($_POST['fileRoot'] == 'local') {
+      
+      $filename = (string)trim($_POST['file']);
+      $ext = $this->checkExtension($filename);
+      if ( $ext !== true ) {
+        return $ext;
+      }
 
-      if ( !$this->mysqli->query($q) ) {
+      if ( !copy( $filename, FOLDER_BACKUP_FILE) ) {
         return array(
-          'errorMsg' => 'Datenbank Query konnte nicht richtig ausgeführt werden. CODE 002'
+          'errorMsg' => 'Fehler beim File-Copy!'
         );
       }
 
+      return true;
 
-      $q = "INSERT INTO `users_groups` (`userID`, `groupName`)";
-      $q .= " values(1,'Webportal_Administrator');";
-
-      if ( !$this->mysqli->query($q) ) {
+    } else if ($_POST['fileRoot'] == 'upload') {
+    
+      $filename = basename($_FILES['file']['name']);
+      if (!$filename) {
         return array(
-          'errorMsg' => 'Datenbank Query konnte nicht richtig ausgeführt werden. CODE 003'
+          'errorMsg' => 'Fehler beim File-Upload! Kein Dateiname.'
+        );
+      }
+      
+      $ext = $this->checkExtension($filename);
+      if ( $ext !== true ) {
+        return $ext;
+      }
+
+      if (!move_uploaded_file($_FILES['file']['tmp_name'], FOLDER_BACKUP_FILE)) {
+        return array(
+          'errorMsg' => 'Fehler beim File-Upload!'
         );
       }
 
+      return true;
+
     } else {
       return array(
-        'errorMsg' => 'Adminuser oder Passwort ist leer!'
+        'errorMsg' => 'Fehler beim File-Upload! Kein Root.'
+      );
+    }
+
+    return false;
+
+  }
+
+  public function checkExtension($filename) {
+
+    if (!$filename) {
+      return array(
+        'errorMsg' => 'Fehler beim File-Upload! Kein Filename. ('.$filename.')'
+      );
+    }
+    $allowedExts = array('zip','7zip','rar');
+    $extension = explode(".", $filename);   
+    $extension = end($extension);
+
+    if (!$extension) {
+      return array(
+        'errorMsg' => 'Fehler beim File-Upload! Kein Extension. ('.$filename.')'
+      );
+    }
+    if( !in_array( strtolower($extension) , $allowedExts) ) {
+      return array(
+        'errorMsg' => 'Es können nur zip Formate verarbeitet werden! ('.$extension.')'
       );
     }
 
     return true;
   }
+
+  public function unzipFile() {
+
+    if ( !file_exists(FOLDER_BACKUP_FILE) ) {
+      return array(
+        'errorMsg' => 'Backup zip wurde nicht gefunden!'
+      );
+    }
+
+    $zip = new ZipArchive;
+    if ($zip->open( FOLDER_BACKUP_FILE ) === TRUE) {
+        $zip->extractTo( FOLDER_BACKUPDATA );
+        $zip->close();
+       return true;
+
+    } else {
+      return array(
+        'errorMsg' => 'Backup zip konnte nicht entpackt werden!'
+      );
+    }
+
+    return false;
+
+  }
+
+  public function getBackupJson() {
+
+    $jsonFile = FOLDER_BACKUPDATA.'/BackupInfo.json';
+
+    if ( !file_exists($jsonFile) ) {
+      return array(
+        'errorMsg' => 'Backup json wurde nicht gefunden!'
+      );
+    }
+
+    if ( !$file = file_get_contents($jsonFile) ) {
+      return array(
+        'errorMsg' => 'Backup json konnte nicht gelesen!'
+      );
+    }
+
+    return $file;
+
+  }
+
+  public function moveFiles() {
+
+    // Move Files to Folders
+    $move = $this->moveFolder('data');
+    if ( is_array($move) && $move['errorMsg'] ) {
+      return $move;
+    }
+
+    $move = $this->moveFolder('cli');
+    if ( is_array($move) && $move['errorMsg'] ) {
+      return $move;
+    }
+
+    $move = $this->moveFolder('framework');
+    if ( is_array($move) && $move['errorMsg'] ) {
+      return $move;
+    }
+
+    if ( file_exists(FOLDER_BACKUPDATA."/www") ) {
+      if ( !recCopy(FOLDER_BACKUPDATA."/www", FOLDER_ROOT."/www") ) {
+        return array(
+          'errorMsg' => 'Ordner `'.$folder.'` konnte nicht verschoben werden!'
+        );
+      }
+    }
+
+    
+    return true;
+
+  }
+
+  public function moveFolder($folder) {
+    
+    if ( file_exists(FOLDER_BACKUPDATA."/".$folder) ) {
+      if ( file_exists(FOLDER_ROOT."/".$folder) ) {
+        if ( !$this->deleteDirectory(FOLDER_ROOT."/".$folder) ) {
+          return array(
+            'errorMsg' => 'Ordner `'.FOLDER_ROOT.'/'.$folder.'` konnte nicht gelöscht werden!'
+          );
+        }
+      }
+      if ( !rename(FOLDER_BACKUPDATA."/".$folder, FOLDER_ROOT."/".$folder) ) {
+        return array(
+          'errorMsg' => 'Ordner `'.$folder.'` konnte nicht verschoben werden!'
+        );
+      }
+    }
+    return true;
+  }
+
+  public function deleteDirectory($dirPath) {
+    if (is_dir($dirPath)) {
+      $objects = scandir($dirPath);
+      foreach ($objects as $object) {
+        if ($object != "." && $object !="..") {
+          if (filetype($dirPath . '/' . $object) == "dir") {
+            $this->deleteDirectory($dirPath . '/' . $object);
+          } else {
+            unlink($dirPath . '/' . $object);
+          }
+        }
+      }
+      reset($objects);
+      rmdir($dirPath);
+      return true;
+    }
+    
+  }
+
+  public function insertDatabase() {
+
+    $connect = $this->connectDB();
+    
+    if ( is_array($connect) && $connect['errorMsg'] ) {
+      $connect['errorMsg'] .= ' ('.$this->mysqli->error.')';
+      return $connect;
+    }
+
+    $split_folder = FOLDER_BACKUPDATA."/sql-dump";
+
+    if ( !file_exists($split_folder) ) {
+      return array(
+        'errorMsg' => 'SQL Dumps Ordner wurde nicht gefunden.'
+      );
+    }
+    
+    $splits = scandir($split_folder);
+    $delList = array();
+    foreach ($splits as $dump) {
+      if ($dump == "." || $dump == "..") { continue; }
+
+      $maxUpload = (int)(ini_get('upload_max_filesize'));
+
+      if ( (int)(filesize($split_folder .'/'.$dump)/1000000) > $json->maxUpload ) {
+        continue;
+      }
+
+
+      $sqlInstallation = file_get_contents($split_folder.'/'.$dump);
+
+      if ( !$sqlInstallation ) {
+        return array(
+          'errorMsg' => 'Datenbank Datei konnte nicht geöffnet werden. ('.$split_folder.'/'.$dump.')'
+        );
+      }
+
+      if ( !$this->mysqli->multi_query($sqlInstallation) ) {
+        return array(
+          'errorMsg' => 'Datenbank Query konnte nicht richtig ausgeführt werden. ('.$split_folder.'/'.$dump.')'
+        );
+      }
+
+      array_push($delList, $dump);
+   
+      do {
+        if($result = mysqli_store_result($this->mysqli)){
+          mysqli_free_result($result);
+        }
+      } while(mysqli_next_result($this->mysqli));
+      
+    }
+
+    // echo "<pre>";
+    // print_r($delList);
+    // echo "</pre>";
+
+    // Dumps löschen die bearbeitet wurden
+    foreach ($delList as $delFile) {
+      if ( !unlink($split_folder.'/'.$delFile) ) {
+        return array(
+          'errorMsg' => 'Datei konnte nicht gelöscht werden ('.$split_folder.'/'.$delFile.')'
+        );
+      }
+    }
+
+    return true;
+  }
+
+
+
+
+
+  public function connectDB() {
+
+    if ( !isset($_POST['dbhost']) ) {
+      return array(
+        'errorMsg' => 'Fehlende Daten! (Host)'
+      );
+    }
+    if ( !isset($_POST['dbuser']) ) {
+      return array(
+        'errorMsg' => 'Fehlende Daten! (User)'
+      );
+    }
+    if ( !isset($_POST['dbname']) ) {
+      return array(
+        'errorMsg' => 'Fehlende Daten! (Name)'
+      );
+    }
+
+    $this->mysqli = new mysqli(
+      (string)$_POST['dbhost'],
+      (string)$_POST['dbuser'],
+      (string)$_POST['dbpass'],
+      (string)$_POST['dbname']
+    );
+
+    if ($this->mysqli->connect_errno) {
+      return array(
+        'errorMsg' => 'Es kann keine Verbindung zur Datenbank aufgebaut werden. '.$this->mysqli->error
+      );
+    }
+
+    return true;
+
+  }
+
+
+
+
 
   public function sendMail() {
 
@@ -409,39 +681,7 @@ class Installer {
     return false;
   }
 
-  public function requiredPost() {
-
-    $list = array(
-      'dbhost',
-      'dbport',
-      'dbname',
-      'dbuser',
-      'name',
-      'nummer',
-      'name1',
-      'name2',
-      'uri',
-      'cronkey',
-      'apikey',
-      'branch',
-      'elternbenutzer',
-      'stundenplan',
-      'notenverwaltung',
-      'adminemail',
-      'adminuser',
-      'adminpass'
-    );
-
-    for($i = 0; $i < count($list); $i++) {
-      
-      if ( !isset($list[$i]) || $list[$i] = '' ) {
-        return false;
-      }
-
-    }
-    
-    return true;
-  }
+  
 
   public function removeFolder() {
     
@@ -454,165 +694,8 @@ class Installer {
 
   }
 
-  public function connectDB() {
+ 
 
-    if ( !isset($_POST['dbhost']) ) {
-      return array(
-        'errorMsg' => 'Fehlende Daten! (Host)'
-      );
-    }
-    if ( !isset($_POST['dbuser']) ) {
-      return array(
-        'errorMsg' => 'Fehlende Daten! (User)'
-      );
-    }
-    if ( !isset($_POST['dbname']) ) {
-      return array(
-        'errorMsg' => 'Fehlende Daten! (Name)'
-      );
-    }
-
-    $this->mysqli = new mysqli(
-      (string)$_POST['dbhost'],
-      (string)$_POST['dbuser'],
-      (string)$_POST['dbpass'],
-      (string)$_POST['dbname']
-    );
-
-    if ($this->mysqli->connect_errno) {
-      return array(
-        'errorMsg' => 'Es kann keine Verbindung zur Datenbank aufgebaut werden. '.$this->mysqli->error
-      );
-    }
-
-    return true;
-
-  }
-
-
-  public function initDbTable() {
-
-    if (!$this->connectDB()) {
-      return array(
-        'errorMsg' => 'Es kann keine Verbindung zur Datenbank aufgebaut werden. '.$this->mysqli->error
-      );
-    }
-
-    if ( !file_exists(FOLDER_TEMP."/Datenbank/Installation/database.sql") ) {
-      return array(
-        'errorMsg' => 'Fehler beim Download und entpacken. database.sql wurde nicht gefunden.'
-      );
-    }
-    $sqlInstallation = file_get_contents(FOLDER_TEMP."/Datenbank/Installation/database.sql");
-
-    if ( !$sqlInstallation ) {
-      return array(
-        'errorMsg' => 'Datenbank Datei konnte nicht geöffnet werden.'
-      );
-    }
-
-    if ( !$this->mysqli->multi_query($sqlInstallation) ) {
-      return array(
-        'errorMsg' => 'Datenbank Query konnte nicht richtig ausgeführt werden.'
-      );
-    }
-
-    do {
-      if($result = mysqli_store_result($this->mysqli)){
-          mysqli_free_result($result);
-      }
-    } while(mysqli_next_result($this->mysqli));
-
-    return true;
-
-  }
-
-
-  public function makeConfig() {
-
-    // Make Config file
-    $configTemp = file_get_contents("./config/temp.php");
-
-    if ( !$configTemp ) {
-      return array(
-        'errorMsg' => 'Fehlende Config Vorlage.'
-      );
-    }
-
-    $configTemp = str_replace('{{schulnummer}}', $_POST['nummer'], $configTemp);
-    $configTemp = str_replace('{{dbhost}}', $_POST['dbhost'], $configTemp);
-    $configTemp = str_replace('{{dbport}}', $_POST['dbport'], $configTemp);
-    $configTemp = str_replace('{{dbname}}', $_POST['dbname'], $configTemp);
-    $configTemp = str_replace('{{dbuser}}', $_POST['dbuser'], $configTemp);
-    $configTemp = str_replace('{{dbpass}}', $_POST['dbpass'], $configTemp);
-    $configTemp = str_replace('{{name}}', $_POST['name'], $configTemp);
-    $configTemp = str_replace('{{name1}}', $_POST['name1'], $configTemp);
-    $configTemp = str_replace('{{name2}}', $_POST['name2'], $configTemp);
-    $configTemp = str_replace('{{uri}}', $_POST['uri'], $configTemp);
-    $configTemp = str_replace('{{cronkey}}', $_POST['cronkey'], $configTemp);
-    $configTemp = str_replace('{{apikey}}', $_POST['apikey'], $configTemp);
-    $configTemp = str_replace('{{elternbenutzer}}', $_POST['elternbenutzer'], $configTemp);
-    $configTemp = str_replace('{{stundenplan}}', $_POST['stundenplan'], $configTemp);
-    $configTemp = str_replace('{{notenverwaltung}}', $_POST['notenverwaltung'], $configTemp);
-    $configTemp = str_replace('{{updateServer}}', UPDATESERVER, $configTemp);
-
-    if ( !file_put_contents(FOLDER_ROOT."/data/config/config.php", $configTemp) ) {
-      return array(
-        'errorMsg' => 'Datei konnte nicht gespeichert werden.'
-      );
-    }
-
-    return true;
-  }
-
-  public function moveFiles() {
-
-    // Move Files to Folders
-    mkdir(FOLDER_ROOT);
-    rename(FOLDER_TEMP."/Upload/cli", FOLDER_ROOT."/cli");
-    rename(FOLDER_TEMP."/Upload/data", FOLDER_ROOT."/data");
-    rename(FOLDER_TEMP."/Upload/framework", FOLDER_ROOT."/framework");
-    //rename(FOLDER_TEMP."/Upload/www", FOLDER_ROOT."/../");
-    recCopy(FOLDER_TEMP."/Upload/www", FOLDER_ROOT."/www");
-    return true;
-
-  }
-
-  public function downloadBranch() {
-
-    $version = file_get_contents(UPDATESERVER . "/api/branch/" . $_POST['branch'] . "/version");
-
-    if ($version === false) {
-      
-      return array(
-        'errorMsg' => 'Es kann leider keine aktuelle Version heruntergeladen werden.'
-      );
-    
-    } else {
-        $version = json_decode($version, true);
-        $url = UPDATESERVER . "/api/release/" . $version['id'] . "/download";
-
-        mkdir(FOLDER_TEMP);
-        file_put_contents(FOLDER_TEMP."/install.zip", fopen($url, 'r'));
-
-        $zip = new ZipArchive;
-        if ($zip->open(FOLDER_TEMP.'/install.zip') === TRUE) {
-            $zip->extractTo(FOLDER_TEMP.'/');
-            $zip->close();
-            return true;
-
-        } else {
-            return array(
-              'errorMsg' => 'Installationsdatei konnte nicht entpackt werden.'
-            );
-        }
-    }
-    
-  }
-
-  public function getRandomString($length) {
-    return str_replace("+","S", str_replace("/", "L", substr(base64_encode(random_bytes(100)), 4, $length)));
-  }
 
 }
 

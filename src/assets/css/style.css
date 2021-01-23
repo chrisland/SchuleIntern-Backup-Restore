@@ -60,6 +60,11 @@ select {
   padding-right: 1.5rem;
 }
 
+input[type=file] {
+  height: 3rem;
+  padding: 0;
+}
+
 
 #app {
   padding-left: 2vw;
@@ -252,8 +257,47 @@ nav ul li  {
   background-color: #ffffff;
 }
 
+.box h4 {
+  margin-top: 1rem;
+  margin-bottom: 0.3rem;
+}
 
 
+.localHandler {
+  padding-top: 0.5rem;
+  padding-bottom: 0.3rem;
+  padding-right: 1rem;
+  padding-left: 1rem;
+}
+.activeLocalHandler {
+  background-color: #3c8dbc !important;
+  color: #fff;
+}
+
+.box-icons-vorsicht li {
+  background-image: url('../icons/cancel.svg');
+  background-repeat: no-repeat;
+  background-size: 1.5rem;
+  background-position: 0.5rem center;
+  padding-left: 3rem;
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+}
+
+.box-icons-vorsicht li.box-icons-vorsicht-NONE {
+  background-image: none !important;
+  padding-left: 1rem !important; 
+}
+
+.icons-vorsicht {
+  background-image: url('../icons/cancel.svg');
+  background-repeat: no-repeat;
+  background-size: 1.5rem;
+  background-position: 0.5rem center;
+  padding-left: 3rem;
+  padding-top: 1rem;
+  padding-bottom: 11rem;
+}
 
 
 .box ul li .box-long {
@@ -303,7 +347,7 @@ nav ul li  {
   font-size: 80%;
 }
 
-.box ul li .info {
+.box .info {
   padding-top: 0.5vw;
   font-size: 80%;
   color: #677c91;
